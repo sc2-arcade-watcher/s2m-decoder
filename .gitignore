@@ -1,0 +1,7 @@
+*.pyc
+*.egg-info
+/__pycache__
+.vscode/
+/s2mdecoder/test.py
+/tmp
+/NOTES.md
