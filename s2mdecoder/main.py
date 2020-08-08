@@ -99,7 +99,7 @@ def read_premium_info(data):
 def read_variant_info(data):
     o = {}
     ver = max(data.keys())
-    assert ver in [8, 11, 12, 13, 14]
+    assert ver in [8, 11, 12, 13, 14, 15]
     o['categoryName'] = read_localization_table_key(data[1])
     o['modeName'] = read_localization_table_key(data[2])
     o['categoryDescription'] = read_localization_table_key(data[3])
@@ -120,6 +120,8 @@ def read_variant_info(data):
         o['maxOpenSlots'] = data[13]
     if ver >= 14:
         o['premiumInfo'] = read_premium_info(data[14]) if data[14] is not None else None
+    if ver >= 15:
+        o['teamNames'] = [*map(read_localization_table_key, data[15])]
     return o
 
 def read_arcade_section_header(data):
@@ -291,7 +293,7 @@ def read_s2mi(data):
     assert len(data) == 2
     data = data[0]
     ver = max(data.keys())
-    assert ver in [22, 23]
+    assert ver in [22, 23, 26]
 
     o['instance'] = read_instance_header(data[0])
     o['headerCacheHandle'] = read_depot_link(data[1])
@@ -328,6 +330,10 @@ def read_s2mi(data):
     o['clusterChildren'] = data[21]
     o['isHiddenLobby'] = bool(data[22])
     o['isExtensionMod'] = bool(data[23]) if 23 in data else False
+    if ver >= 24:
+        o['transitionId'] = data[24]
+        o['lastPublishTime'] = data[25]
+        o['firstPublicPublishTime'] = data[26]
 
     return o
 
