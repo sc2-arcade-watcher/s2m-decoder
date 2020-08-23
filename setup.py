@@ -4,7 +4,7 @@ from distutils.core import setup
 
 setup(
     name='s2mdecoder',
-    version='0.1.0',
+    version='0.2.0',
     author='Talv',
     url='https://github.com/SC2-Arcade-Watcher/s2m-decoder',
     packages=['s2mdecoder'],

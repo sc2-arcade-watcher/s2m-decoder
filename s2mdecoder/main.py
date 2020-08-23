@@ -16,7 +16,7 @@ def to_bool(data: int):
 def read_depot_link(data):
     o = {}
     o['type'] = data[0:4].decode('ascii')
-    o['server'] = data[4:8].strip(b'\x00').decode('ascii').lower()
+    o['region'] = data[4:8].strip(b'\x00').decode('ascii').lower()
     o['hash'] = to_hex(data[8:])
     return o
 
@@ -64,14 +64,7 @@ def read_screenshot_entry(data):
         'caption': read_localization_table_key(data[1]),
     }
 
-def read_namespace_definition(data):
-    assert len(data) == 2
-    return {
-        'namespace': read_attribute_link(data[0]),
-        'value': read_attribute_default_value_or_values(data[1]),
-    }
-
-def read_map_info(data):
+def read_working_set(data):
     o = {}
     ver = max(data.keys())
 
@@ -79,11 +72,11 @@ def read_map_info(data):
 
     o['name'] = read_localization_table_key(data[0])
     o['description'] = read_localization_table_key(data[1])
-    assert data[2] == None
-    o['thumbnail'] = read_picture(data[3])
+    o['thumbnail'] = read_picture(data[2])
+    o['bigMap'] = read_picture(data[3])
     o['maxPlayers'] = data[4]
     assert data[5] == 22
-    o['namespaceDefinitions'] = [*map(read_namespace_definition, data[6])]
+    o['instances'] = [*map(read_variant_attribute_defaults, data[6])]
     o['visualFiles'] = [*map(read_depot_link, data[7])]
     o['localeTable'] = [*map(read_localization_link, data[8])]
 
@@ -117,7 +110,7 @@ def read_attribute_value_definition(data):
     if ver >= 2:
         assert len(data[2]) == 0
     return {
-        'value': data[0].decode('ascii'),
+        'value': data[0].strip(b'\x00').decode('ascii'),
         'visual': read_attribute_visual(data[1])
     }
 
@@ -130,10 +123,10 @@ VISIBILITY_TYPE = {
 
 def read_attribute_definition(data):
     o = {}
-    o['namespace'] = read_attribute_link(data[0])
+    o['instance'] = read_attribute_link(data[0])
     o['values'] = [*map(read_attribute_value_definition, data[1])]
     o['visual'] = read_attribute_visual(data[2])
-    o['requirements'] = str(data[3])
+    o['_requirements'] = str(data[3])
     o['arbitration'] = data[4]
     # 0x00 always
     # 0x01 first come, first serve
@@ -159,7 +152,7 @@ def read_attribute_default_value(data):
     assert len(data) == 2
     return {
         'index': data[0],
-        'unk_attr_val_1': data[1],
+        '_unk_attr_val_1': data[1],
     }
 
 def read_attribute_default_value_or_values(data):
@@ -253,12 +246,15 @@ def read_arcade_section(data):
     return sect_headers
 
 def read_arcade_tutorial_link(data):
-    assert len(data) == 3
+    ver = max(data.keys())
+    assert ver == 2
     o = {}
-    o['variantIndex'] = data[0],
-    o['speed'] = data[1].decode('ascii'),
+    o['variantIndex'] = data[0]
+    o['speed'] = data[1].decode('ascii')
     # looks like link to map, but it's an array..
     assert len(data[2]) == 1
+    assert len(data[2][0]) == 2
+    assert data[2][0][1] == 0
     o['map'] = read_instance_header(data[2][0][0])
     return o
 
@@ -295,14 +291,14 @@ def read_s2mh(data):
 
     assert len(data[0]) == 2
     o['header'] = read_instance_header(data[0])
-    o['name'] = data[1].decode('utf8')
-    o['mapFile'] = read_depot_link(data[2])
+    o['filename'] = data[1].decode('utf8')
+    o['archiveHandle'] = read_depot_link(data[2])
     o['mapNamespace'] = data[3]
-    o['mapInfo'] = read_map_info(data[4])
+    o['workingSet'] = read_working_set(data[4])
     o['attributes'] = [*map(read_attribute_definition, data[5])]
 
     if 6 in data:
-        o['unk6'] = '%s' % data[6]
+        o['_unk6'] = '%s' % data[6]
 
     # TODO: 7 - score IDs and such?
     # o['resultDefinitions'] = []
@@ -320,13 +316,13 @@ def read_s2mh(data):
     o['variants'] = [*map(read_variant_info, data[13])]
 
     if ver >= 14:
-        o['dependencies'] = [*map(read_instance_header, data[14])]
+        o['extraDependencies'] = [*map(read_instance_header, data[14])]
     if ver >= 18:
         o['addDefaultPermissions'] = to_bool(data[15])
-        o['relevantPermissions'] = [*map(lambda x: {'name': x[0].strip(b'\x00').decode('ascii'), 'number': x[1]}, data[16])]
+        o['relevantPermissions'] = [*map(lambda x: {'name': x[0].strip(b'\x00').decode('ascii'), 'id': x[1]}, data[16])]
         o['specialTags'] = [x.strip(b'\x00').decode('ascii') for x in data[18]]
     if ver >= 22:
-        o['arcade'] = read_arcade_info(data[19]) if data[19] else None
+        o['arcadeInfo'] = read_arcade_info(data[19]) if data[19] else None
         o['addMultiMod'] = to_bool(data[22])
     if ver >= 23:
         # 23: [b'SC2ParkVoicePack'
@@ -350,7 +346,7 @@ def s2mh_apply_s2ml(data, translation, fields = None):
 
     if fields is None:
         fields = {
-            'mapInfo': {
+            'workingSet': {
                 'name': True,
                 'description': True,
             },
@@ -361,7 +357,7 @@ def s2mh_apply_s2ml(data, translation, fields = None):
                 'categoryDescription': True,
                 'modeDescription': True,
             },
-            'arcade': {
+            'arcadeInfo': {
                 'gameInfoScreenshots': {
                     'caption': True,
                 },
