@@ -53,8 +53,8 @@ def read_picture(data):
         'index': data[0],
         'top': data[1],
         'left': data[2],
-        'width': data[3],
-        'height': data[4],
+        'height': data[3],
+        'width': data[4],
     }
 
 def read_screenshot_entry(data):
